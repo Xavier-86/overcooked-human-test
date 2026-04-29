@@ -24,20 +24,6 @@ This opens a menu where you can **Register**, **Login**, **Open Test Menu**, **V
 
 ---
 
-## Open Test Menu
-
-Once logged in, launch the menu and select **Open Test Menu**:
-
-```bash
-overcooked-human-test
-```
-
-Each test consists of multiple episodes against an AI agent. The algorithm name is **never shown** to you.
-
-After each episode, you return to the menu and can choose to continue, practice, or logout.
-
----
-
 ## Practice Mode
 
 You can enter **Practice** from the logged-in menu. Practice games let you try any environment and player position, but **results are not recorded**.
