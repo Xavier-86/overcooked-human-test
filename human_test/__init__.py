@@ -5,7 +5,7 @@ Play Overcooked with trained AI agents via Pygame (full mode)
 or a lightweight terminal demo (standalone mode).
 """
 
-__version__ = "0.2.0"
+__version__ = "1.0.0"
 __author__ = "ZSC-Eval Team"
 
 # Only import lightweight modules here.

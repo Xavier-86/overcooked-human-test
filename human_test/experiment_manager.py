@@ -385,7 +385,7 @@ def print_progress(user_id: str):
 def calculate_user_score(user_id: str) -> float:
     """Calculate the user's total score.
 
-    For every recorded episode score, compute ``max(score - 100, 0) * 0.1``.
+    For every recorded episode score, compute ``max(score - 120, 0) * 0.2``.
     Unfinished episodes contribute 0. The total is divided by the fixed
     total episode count across all tests, so the score is monotonically
     non-decreasing as more episodes are completed.
@@ -403,7 +403,7 @@ def calculate_user_score(user_id: str) -> float:
     total = 0.0
     for r in results:
         for score in r.get("scores", []):
-            total += max(score - 100, 0) * 0.1
+            total += max(score - 120, 0) * 0.2
 
     return round(total / total_episodes, 1)
 

@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)]()
 
-> Cook with an AI teammate.<br>Local blind testing, encryption, independent randomization — a complete platform for human-AI collaboration research.
+> Cook with an AI teammate without knowing which algorithm it is.<br>Blind testing, encryption, and independent randomization — all designed for one purpose: **fair experiments with reliable incentive distribution**.
 
 [中文](README.zh.md) · [GitHub](https://github.com/Xavier-86/overcooked-human-test.git)
 
@@ -20,10 +20,10 @@
 
 ## Features
 
-- 🎭 **Blind Testing** — Participants never know which AI algorithm they are facing
-- 🔐 **Local Encryption** — All data is encrypted and stored locally
-- 🔀 **Independent Randomization** — Each player's test order is shuffled separately
-- 🎯 **Practice Mode** — Unlimited practice runs without affecting scores
+- 🎭 **Blind Testing** — Eliminates algorithm bias, ensuring incentives are awarded based on genuine performance
+- 🔐 **Local Encryption** — Results are encrypted and tamper-proof, serving as a trusted credential for claiming incentives
+- 🔀 **Independent Randomization** — Each player's test order is shuffled separately, so incentive evaluation is unaffected by others
+- 🎯 **Practice Mode** — Unlimited practice runs that do not affect formal test scores or incentive calculations
 - 🛠️ **Admin Tools** — Built-in encryption, decryption, and result reader
 - 🌐 **Bilingual UI** — Switch between English and Chinese
 - ⌨️ **Interactive Menu** — Arrow-key menu or command-line operation

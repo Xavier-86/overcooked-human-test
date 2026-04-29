@@ -31,7 +31,7 @@ from .experiment_manager import (
     calculate_user_score,
 )
 
-__version__ = "0.2.0"
+__version__ = "1.0.0"
 DEFAULT_FPS = 4
 
 # ---------------------------------------------------------------------------

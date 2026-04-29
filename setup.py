@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="overcooked-with-AI",
-    version="0.2.0",
+    version="1.0.0",
     author="ZSC-Eval Team",
     description="Overcooked Human-AI Interaction Testing Tool",
     long_description=long_description,

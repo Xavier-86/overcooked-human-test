@@ -77,11 +77,11 @@ Your goal is to **cook and serve as many orders as possible** before time runs o
 Your **Total Score** is computed as follows:
 
 ```
-Total Score = sum over all episodes of max(episode_score - 100, 0) * 0.1
+Total Score = sum over all episodes of max(episode_score - 120, 0) * 0.2
               divided by the total number of episodes (fixed)
 ```
 
-- Only the portion **above 100** is counted per episode (scores below 100 contribute **0**, no penalty)
+- Only the portion **above 120** is counted per episode (scores below 120 contribute **0**, no penalty)
 - Unfinished episodes count as **0** toward the total
 - The score is **monotonically non-decreasing** -- it only goes up as you complete more episodes
 - The total score is displayed in the menu header and in the progress view
