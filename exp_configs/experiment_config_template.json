@@ -1,0 +1,8 @@
+{
+  "_description": "This is a template. Copy this file to experiment_config.json (remove the _template suffix) — files ending in _template.json are not encrypted.",
+  "experiment_name": "overcooked_human_ai_test",
+  "environments": ["~", "~"],
+  "positions": [0, 1],
+  "episodes_per_config": 2,
+  "algorithm_pool": ["~", "~", "~"]
+}
