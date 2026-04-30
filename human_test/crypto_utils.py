@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 
 # Embedded key (obfuscated via extra base64 layer).
 # The administrator must save the raw key generated during first-run setup.
-_ENCODED_KEY = "T2M1ejRnbWdXMDFtRkV1bDVxY3pCODRNbml1RnhSMXh4Vy1KUFJpLWtMTT0="
+_ENCODED_KEY = "SW1XOUY3YUVYWlZKOXA5Wk9Ma1l6QmRnYkZWT05neTktMzJSZ3J5TzlnOD0="
 
 # Runtime override (used during first-run key setup).
 _OVERRIDE_KEY = None

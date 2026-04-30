@@ -27,7 +27,6 @@ from .experiment_manager import (
     get_all_tests,
     init_user_progress,
     record_episode_result,
-    print_progress,
     calculate_user_score,
 )
 
@@ -88,7 +87,6 @@ _TRANSLATIONS = {
     "Run next episode (all done)": {"zh": "运行下一局 (全部完成)"},
     "Open Test Menu": {"zh": "打开测试菜单"},
     "Practice": {"zh": "练习"},
-    "View Progress": {"zh": "查看进度"},
     "Logout": {"zh": "退出登录"},
     "Reset Progress": {"zh": "重置进度"},
     "User: {user}  |  Total Score: {score}": {"zh": "用户: {user}  |  总得分: {score}"},
@@ -708,10 +706,10 @@ def _run_test_select(user_id: str) -> Optional[int]:
         ep_done = test.get("completed_episodes", 0)
         ep_total = test.get("total_episodes", 0)
         if ep_done >= ep_total:
-            label = _T("Test {i}: {env} pos={pos} [DONE]", i=i+1, env=test["env_name"], pos=test["human_player"])
+            label = _T("Test {i}: {env} [DONE]", i=i+1, env=test["env_name"])
             enabled = False
         else:
-            label = _T("Test {i}: {env} pos={pos} ({done}/{total})", i=i+1, env=test["env_name"], pos=test["human_player"], done=ep_done, total=ep_total)
+            label = _T("Test {i}: {env} ({done}/{total})", i=i+1, env=test["env_name"], done=ep_done, total=ep_total)
             enabled = True
             has_pending = True
         options.append((label, enabled))
@@ -1024,7 +1022,6 @@ def interactive_menu() -> int:
                     (run_label, True),
                     (_T("Open Test Menu"), True),
                     (_T("Practice"), True),
-                    (_T("View Progress"), True),
                     (_T("Logout"), True),
                     (_T("Exit"), True),
                 ]
@@ -1033,12 +1030,11 @@ def interactive_menu() -> int:
                     (run_label, False),
                     (_T("Reset Progress"), True),
                     (_T("Practice"), True),
-                    (_T("View Progress"), True),
                     (_T("Logout"), True),
                     (_T("Exit"), True),
                 ]
             choice = _menu_select(options, extra_lines=extra)
-            if choice == -1 or choice == 5:
+            if choice == -1 or choice == 4:
                 print(_T("Goodbye!"))
                 return 0
 
@@ -1070,12 +1066,6 @@ def interactive_menu() -> int:
                         return ret
 
             elif choice == 3:
-                os.system("cls" if os.name == "nt" else "clear")
-                print_banner()
-                print_progress(current_user)
-                input(_T("Press Enter to continue..."))
-
-            elif choice == 4:
                 logout_user()
                 print(_T("Logged out '{current}'.", current=current_user))
                 input(_T("Press Enter to continue..."))

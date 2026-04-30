@@ -157,12 +157,10 @@ class PolicyLoader:
                     temporal_state_num = 0
             policy_args.temporal_state_num = temporal_state_num
             policy = R_MAPPOPolicy_adaptive(*policy_config, device=device)
-            print("   Using adaptive policy (supports temporal state)")
         else:
             # Directly instantiate standard R_MAPPOPolicy, avoid dependency on potentially missing r_mappo.py / population modules
             from zsceval.algorithms.r_mappo.algorithm.rMAPPOPolicy import R_MAPPOPolicy
             policy = R_MAPPOPolicy(*policy_config, device=device)
-            print(f"   Using standard policy: {policy_args.algorithm_name}")
         
         policy.prep_rollout()
         return policy
@@ -261,14 +259,12 @@ class PolicyLoader:
                 if adaptive_candidates:
                     policy_name = adaptive_candidates[0]
                     population_config = raw_config
-                    print(f"[OK] Auto-selected BACH adaptive policy: {policy_name}")
                 elif has_agent_groups and ai_player is not None:
                     agent_key = f"agent_{ai_player}"
                     if agent_key in raw_config:
                         population_config = raw_config[agent_key]
                         selected_from_agent_group = True
                         policy_name = list(population_config.keys())[0]
-                        print(f"[OK] Using from_separate_policy_pool: loading for player {ai_player} loading {agent_key} policy pool")
                     else:
                         policy_name = list(population_config.keys())[0]
                 else:
@@ -324,13 +320,7 @@ class PolicyLoader:
             policy = self._create_policy(policy_config)
             
             if model_path and os.path.exists(model_path):
-                if not config.get("model_path"):
-                    print(f"   Auto-inferred model path: {model_path}")
                 policy.load_checkpoint({"actor": model_path})
-                actual_stage = "S2" if "s2" in pop_yaml_path else "S1"
-                player_info = f" [player={ai_player}]" if (has_agent_groups and ai_player is not None) else ""
-                print(f"[OK] Policy loaded: {policy_name} [{actual_stage}]{player_info}")
-                print(f"   Model: {model_path}")
             elif model_path:
                 print(f"[WARN] Model file not found: {model_path}")
                 return None, None, None
@@ -338,12 +328,10 @@ class PolicyLoader:
             return policy, config.get("featurize_type", "ppo"), policy_args
         
         # If no population.yml, try direct checkpoint lookup
-        print(f"[WARN] population.yml not found, trying direct checkpoint lookup...")
         pt_path, config_path = self.find_policy(algo, stage=stage)
-        
+
         if not pt_path:
             other_stage = 's1' if stage == 's2' else 's2'
-            print(f"[WARN] {stage} not found, trying {other_stage}...")
             pt_path, config_path = self.find_policy(algo, stage=other_stage)
         
         if pt_path and config_path:
@@ -423,7 +411,6 @@ class PolicyLoader:
         if os.path.exists(checkpoint_path):
             try:
                 policy.load_checkpoint({"actor": checkpoint_path})
-                print(f"[OK] Loaded policy model: {checkpoint_path}")
             except Exception as e:
                 print(f"[WARN] Model loading error: {e}")
                 import traceback
@@ -443,7 +430,6 @@ class PolicyLoader:
         if pool_pt:
             config_path = self._find_policy_config(prefer_adaptive=prefer_adaptive)
             if config_path:
-                print(f"   Selected pool policy: {os.path.relpath(pool_pt)}")
                 return pool_pt, config_path
             else:
                 # No policy_config.pkl, try inferring from checkpoint and cache
@@ -453,7 +439,6 @@ class PolicyLoader:
                     cache_path = os.path.join(cache_dir, "inferred_policy_config.pkl")
                     with open(cache_path, "wb") as f:
                         pickle.dump(inferred, f)
-                    print(f"   [OK] Inferred policy config from checkpoint and cached: {os.path.relpath(cache_path)}")
                     return pool_pt, cache_path
                 except Exception as e:
                     print(f"   [WARN] Found pool policy but cannot infer config: {e}")
@@ -508,8 +493,7 @@ class PolicyLoader:
                             break
                 
                 if config_path:
-                    print(f"   Selected checkpoint: {os.path.basename(best_pt)} (step={candidates[0][0] % int(1e9)})")
-                    return best_pt, config_path
+                            return best_pt, config_path
         
         return None, None
     
@@ -663,8 +647,6 @@ class HumanTestWithPolicy:
         if policy_pool_path:
             self._load_policy(policy_pool_path, policy_name)
 
-        if self.ai_policy is None:
-            print("Using random policy")
     
     def _setup_environment(self):
         """Setup environment - prefer overcooked_new layouts."""
@@ -687,8 +669,6 @@ class HumanTestWithPolicy:
     
     def _load_policy(self, policy_pool_path: str, policy_name: Optional[str]):
         """Load AI policy - use EvalPolicy wrapper to align with training eval logic."""
-        print(f"\nLoading AI policy (Stage: {self.stage}, AI Player: {self.ai_player})")
-        
         try:
             loader = PolicyLoader(policy_pool_path, self.env_name)
             result = loader.load_policy(self.algo, policy_name, stage=self.stage, ai_player=self.ai_player)
@@ -698,7 +678,6 @@ class HumanTestWithPolicy:
                 self.policy_loader = loader
                 # Use EvalPolicy wrapper, fully aligned with training eval RNN state / mask management
                 self.eval_policy = EvalPolicy(self.policy_args, self.ai_policy)
-                print("[OK] Policy loaded successfully (EvalPolicy wrapper)")
             else:
                 print("[WARN] Policy loading failed, using random policy")
         except Exception as e:

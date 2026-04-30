@@ -152,9 +152,9 @@ def get_user_config(user_id: str, config: dict = None) -> dict:
 def generate_test_sequence(user_id: str, config: dict = None) -> List[Dict[str, Any]]:
     """Generate the test sequence for a user.
 
-    Each test is an env x position combo.  Inside each test, every algorithm
-    in algorithm_pool appears exactly ``episodes_per_config`` times.  The
-    internal episode order is shuffled using the current time as seed so
+    Each test is an environment.  Inside each test, every algorithm appears
+    for every position exactly ``episodes_per_config`` times.  The episode
+    order (algo + position) is shuffled using the current time as seed so
     every user gets a different order.
     """
     user_cfg = get_user_config(user_id, config)
@@ -166,21 +166,27 @@ def generate_test_sequence(user_id: str, config: dict = None) -> List[Dict[str, 
 
     sequence = []
     for env in envs:
+        # Build episode list: every (algo, position) combo repeated ``episodes`` times
+        episodes_list = []
         for pos in positions:
-            # Build the episode list: every algo repeated ``episodes`` times
-            algo_sequence = algos * episodes
-            # Shuffle with a time-based seed so each user gets a unique order
-            rng = random.Random(time.time())
-            rng.shuffle(algo_sequence)
+            for algo in algos:
+                for _ in range(episodes):
+                    episodes_list.append({
+                        "algo": algo,
+                        "position": pos,
+                    })
 
-            sequence.append({
-                "index": len(sequence),
-                "env_name": env,
-                "human_player": pos,
-                "algo_sequence": algo_sequence,
-                "completed_episodes": 0,
-                "total_episodes": len(algo_sequence),
-            })
+        # Shuffle with a time-based seed so each user gets a unique order
+        rng = random.Random(time.time())
+        rng.shuffle(episodes_list)
+
+        sequence.append({
+            "index": len(sequence),
+            "env_name": env,
+            "episodes": episodes_list,
+            "completed_episodes": 0,
+            "total_episodes": len(episodes_list),
+        })
 
     random.shuffle(sequence)
     for i, item in enumerate(sequence):
@@ -252,9 +258,9 @@ def get_next_episode(user_id: str, test_index: int = None, config: dict = None) 
 
     test = sequence[test_index]
     ep_idx = test.get("completed_episodes", 0)
-    algo_seq = test.get("algo_sequence", [])
+    episodes = test.get("episodes", [])
 
-    if ep_idx >= len(algo_seq):
+    if ep_idx >= len(episodes):
         # This test is fully done; auto-advance current_test_index if needed
         if progress.get("current_test_index", 0) == test_index:
             progress["current_test_index"] = test_index + 1
@@ -262,13 +268,14 @@ def get_next_episode(user_id: str, test_index: int = None, config: dict = None) 
             save_progress(user_id, progress)
         return None
 
+    ep = episodes[ep_idx]
     return {
         "test_index": test_index,
         "env_name": test["env_name"],
-        "human_player": test["human_player"],
-        "algo": algo_seq[ep_idx],
+        "human_player": ep["position"],
+        "algo": ep["algo"],
         "episode_number": ep_idx + 1,
-        "total_episodes": len(algo_seq),
+        "total_episodes": len(episodes),
     }
 
 
@@ -292,20 +299,20 @@ def record_episode_result(user_id: str, test_index: int, result: dict):
 
     test = sequence[test_index]
     ep_idx = test.get("completed_episodes", 0)
-    algo_seq = test.get("algo_sequence", [])
+    episodes = test.get("episodes", [])
 
-    if ep_idx >= len(algo_seq):
+    if ep_idx >= len(episodes):
         raise RuntimeError("All episodes in this test already completed.")
 
-    algo = algo_seq[ep_idx]
+    ep = episodes[ep_idx]
 
     result_entry = {
         "test_index": test_index,
         "env_name": test["env_name"],
-        "algo": algo,
-        "human_player": test["human_player"],
+        "algo": ep["algo"],
+        "human_player": ep["position"],
         "episode_number": ep_idx + 1,
-        "total_episodes": len(algo_seq),
+        "total_episodes": len(episodes),
         "scores": result.get("scores", []),
         "durations": result.get("durations", []),
         "soups_cooked": result.get("soups_cooked", []),
@@ -320,7 +327,7 @@ def record_episode_result(user_id: str, test_index: int, result: dict):
 
     # Update progress
     test["completed_episodes"] = ep_idx + 1
-    if test["completed_episodes"] >= len(algo_seq):
+    if test["completed_episodes"] >= len(episodes):
         progress["completed_tests"] = progress.get("completed_tests", 0) + 1
         if progress.get("current_test_index", 0) == test_index:
             progress["current_test_index"] = test_index + 1
@@ -366,7 +373,7 @@ def print_progress(user_id: str):
             marker = f"[{ep_done}/{ep_total}]"
         else:
             marker = "[    ]"
-        print(f"  {marker} Test {i+1}: env={test['env_name']}, position={test['human_player']}")
+        print(f"  {marker} Test {i+1}: env={test['env_name']}")
 
     if completed_episodes >= total_episodes:
         results_path = os.path.abspath(_get_results_path(user_id))
@@ -378,7 +385,7 @@ def print_progress(user_id: str):
         if current < len(sequence):
             next_test = sequence[current]
             print(f"\n  Suggested next: Test {current+1} "
-                  f"(env={next_test['env_name']}, pos={next_test['human_player']})")
+                  f"(env={next_test['env_name']})")
     print("=" * width + "\n")
 
 
