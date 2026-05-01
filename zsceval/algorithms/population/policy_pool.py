@@ -12,7 +12,7 @@ from zsceval.runner.shared.base_runner import make_trainer_policy_cls
 from zsceval.algorithms.r_mappo.algorithm.rMAPPOPolicy import R_MAPPOPolicy_adaptive, R_MAPPOPolicy
 
 # 从当前文件位置推导项目根目录，使用相对路径
-_zsceval_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+_zsceval_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 POLICY_POOL_PATH = os.path.join(_zsceval_root, "zsceval", "policy_pool")
 # 支持 POLICY_POOL 环境变量覆盖
 if os.environ.get("POLICY_POOL"):

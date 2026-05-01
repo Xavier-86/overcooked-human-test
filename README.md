@@ -6,7 +6,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)]()
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)]()
 
 > Cook with an AI teammate without knowing which algorithm it is.<br>Blind testing, encryption, and independent randomization — all designed for one purpose: **fair experiments with reliable incentive distribution**.
 

@@ -13,7 +13,7 @@ def _get_policy_pool_roots() -> List[str]:
     if os.environ.get("POLICY_POOL"):
         candidates.append(os.environ.get("POLICY_POOL"))
     # Check next to the package root
-    pkg_root = os.path.join(os.path.dirname(__file__), "..")
+    pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     candidates.append(os.path.join(pkg_root, "exp_configs", "policy_pool"))
     # Check current working directory
     candidates.append(os.path.join(os.getcwd(), "exp_configs", "policy_pool"))
@@ -62,9 +62,9 @@ def get_policy_path(env_name: str, algo: str) -> str:
     """
     for root in _get_policy_pool_roots():
         possible_paths = [
-            os.path.join(root, env_name, algo, "s2", "policy.pt"),
-            os.path.join(root, env_name, algo, "actor_checkpoint.pt"),
-            os.path.join(root, env_name, algo, "policy_config.pkl"),
+            os.path.join(root, env_name, algo.lower(), "s2", "policy.pt"),
+            os.path.join(root, env_name, algo.lower(), "actor_checkpoint.pt"),
+            os.path.join(root, env_name, algo.lower(), "policy_config.pkl"),
         ]
         for path in possible_paths:
             if os.path.exists(path):
@@ -72,7 +72,7 @@ def get_policy_path(env_name: str, algo: str) -> str:
 
     # Fallback: return the first candidate path (will likely fail later)
     fallback_root = _get_policy_pool_roots()[0]
-    return os.path.join(fallback_root, env_name, algo, "s2", "policy.pt")
+    return os.path.join(fallback_root, env_name, algo.lower(), "s2", "policy.pt")
 
 
 def load_policy_config(policy_path: str) -> Optional[dict]:

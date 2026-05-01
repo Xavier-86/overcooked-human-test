@@ -30,7 +30,7 @@ from .crypto_utils import (
 
 
 # experiment_manager.py lives in human_test/, but exp_configs/ is at project root.
-_project_root = os.path.join(os.path.dirname(__file__), "..")
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 EXP_CONFIGS_DIR = os.path.join(_project_root, "exp_configs")
 DEFAULT_CONFIG_PATH = os.path.join(EXP_CONFIGS_DIR, "experiment_config.json.enc")
 USER_DATA_DIR = os.path.join(EXP_CONFIGS_DIR, "user_data")

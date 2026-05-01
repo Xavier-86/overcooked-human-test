@@ -11,7 +11,6 @@ import sys
 import os
 import getpass
 import shutil
-import random
 import traceback
 from typing import Optional
 
@@ -184,7 +183,7 @@ def print_banner():
 
 def _has_encrypted_files() -> bool:
     """Check whether any .enc files already exist under exp_configs/."""
-    project_root = os.path.join(os.path.dirname(__file__), "..")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     exp_dir = os.path.join(project_root, "exp_configs")
     if not os.path.isdir(exp_dir):
         return False
@@ -198,7 +197,7 @@ def _has_encrypted_files() -> bool:
 def _update_embedded_key(raw_key: str):
     """Rewrite crypto_utils.py so that _ENCODED_KEY matches the new key."""
     import base64
-    project_root = os.path.join(os.path.dirname(__file__), "..")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     cu_path = os.path.join(project_root, "human_test", "crypto_utils.py")
     with open(cu_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -272,7 +271,7 @@ def _setup_key() -> str:
 
 def _encrypt_existing_configs():
     """Encrypt any plaintext JSON/JSONL files under exp_configs/."""
-    project_root = os.path.join(os.path.dirname(__file__), "..")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     exp_dir = os.path.join(project_root, "exp_configs")
     if not os.path.isdir(exp_dir):
         return
@@ -451,7 +450,7 @@ def _admin_menu() -> int:
 def get_available_envs() -> list:
     """Discover available environments from policy pools."""
     policy_roots = []
-    project_root = os.path.join(os.path.dirname(__file__), "..")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     policy_roots.append(os.path.join(project_root, "exp_configs", "policy_pool"))
     policy_roots.append(os.path.join(project_root, "zsceval", "policy_pool"))
     if os.environ.get("POLICY_POOL"):
@@ -767,7 +766,7 @@ def _run_single_episode(test_index: int) -> int:
 
     # Auto-detect policy pool
     policy_pool_path = None
-    project_root = os.path.join(os.path.dirname(__file__), "..")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     candidates = [
         os.path.join(project_root, "exp_configs", "policy_pool"),
         os.path.join(project_root, "zsceval", "policy_pool"),
@@ -856,10 +855,10 @@ def _run_practice(env_name: str, human_player: int) -> int:
     import pygame
     from .trained_policy_render import HumanTestWithPolicy
 
-    # Pick a random algorithm from the pool for variety.
+    # Pick the first algorithm from the pool deterministically.
     cfg = load_experiment_config()
     algos = cfg.get("algorithm_pool", ["bach"])
-    algo = random.choice(algos)
+    algo = algos[0] if algos else "bach"
 
     print()
     print_bar("=", _T("Practice Mode"))
@@ -871,7 +870,7 @@ def _run_practice(env_name: str, human_player: int) -> int:
 
     # Auto-detect policy pool
     policy_pool_path = None
-    project_root = os.path.join(os.path.dirname(__file__), "..")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     candidates = [
         os.path.join(project_root, "exp_configs", "policy_pool"),
         os.path.join(project_root, "zsceval", "policy_pool"),

@@ -6,7 +6,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)]()
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)]()
 
 > 和 AI 队友一起烹饪，但你永远不知道它是什么算法。<br>盲测设计、本地加密、独立随机 —— 所有机制都服务于同一个目标：**实验结果公平透明，激励发放有据可依**。
 

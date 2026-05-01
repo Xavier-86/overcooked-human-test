@@ -129,7 +129,7 @@ class PolicyLoader:
         self.policy_pool_path = policy_pool_path
         self.layout_name = layout_name
         # Also record zsceval/policy_pool as fallback
-        project_root = os.path.join(os.path.dirname(__file__), '..')
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         self.zsceval_pool_path = os.path.join(project_root, "zsceval", "policy_pool")
         # Try loading map from overcooked_new (new maps have tomatoes)
         try:
@@ -172,7 +172,7 @@ class PolicyLoader:
             (yaml_path, base_path_for_model)  
         """
         # BACH may correspond to ltl directory in policy_pool
-        pool_algos = [algo]
+        pool_algos = [algo.lower()]
         if algo.lower() == "bach":
             pool_algos.append("ltl")
         
@@ -197,13 +197,13 @@ class PolicyLoader:
                 # 2. Try any .yml file
                 base_dir = os.path.join(search_path, self.layout_name, pool_algo, stage)
                 if os.path.isdir(base_dir):
-                    yml_files = [f for f in os.listdir(base_dir) if f.endswith('.yml')]
+                    yml_files = sorted([f for f in os.listdir(base_dir) if f.endswith('.yml')])
                     if yml_files:
                         return os.path.join(base_dir, yml_files[0]), model_base_path
                 
                 base_dir = os.path.join(search_path, self.layout_name, pool_algo, other_stage)
                 if os.path.isdir(base_dir):
-                    yml_files = [f for f in os.listdir(base_dir) if f.endswith('.yml')]
+                    yml_files = sorted([f for f in os.listdir(base_dir) if f.endswith('.yml')])
                     if yml_files:
                         print(f"[WARN] {stage} not found, trying {other_stage}")
                         return os.path.join(base_dir, yml_files[0]), model_base_path
@@ -298,8 +298,8 @@ class PolicyLoader:
                         if f.endswith('.pt'):
                             pt_files.append(os.path.join(root, f))
                 if pt_files:
-                    import random
-                    model_path = random.choice(pt_files)
+                    pt_files = sorted(pt_files)
+                    model_path = pt_files[-1]
             
             with open(policy_config_path, 'rb') as f:
                 policy_config = list(pickle.load(f))
@@ -342,7 +342,7 @@ class PolicyLoader:
     
     def _find_policy_config(self, prefer_adaptive: bool = False) -> Optional[str]:
         """Find policy config file (supports policy_pool and zsceval/policy_pool)"""
-        project_root = os.path.join(os.path.dirname(__file__), '..')
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         standard_names = ["rnn_policy_config.pkl", "mlp_policy_config.pkl"]
         adaptive_names = ["rnn_policy_config_adaptive.pkl"]
         
@@ -366,7 +366,7 @@ class PolicyLoader:
         """Find policy files in policy_pool / zsceval/policy_pool"""
         project_root = os.path.join(os.path.dirname(__file__), '..')
         # BACH algorithm may correspond to ltl or bach directory in policy_pool
-        pool_algos = [algo]
+        pool_algos = [algo.lower()]
         if algo.lower() == "bach":
             pool_algos.append("ltl")
 
@@ -388,8 +388,8 @@ class PolicyLoader:
                         if f.endswith('.pt'):
                             pt_files.append(os.path.join(root, f))
                 if pt_files:
-                    import random
-                    return random.choice(pt_files)
+                    pt_files = sorted(pt_files)
+                    return pt_files[-1]
         return None
 
     def load_policy_from_checkpoint(self, checkpoint_path: str, policy_config_path: str) -> Tuple[Any, str, Any]:
@@ -444,7 +444,7 @@ class PolicyLoader:
                     print(f"   [WARN] Found pool policy but cannot infer config: {e}")
         
         # 2. Search results directory
-        project_root = os.path.join(os.path.dirname(__file__), '..')
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         results_path = os.path.join(project_root, 'results', 'Overcooked', self.layout_name)
         
         if os.path.exists(results_path):
@@ -858,8 +858,8 @@ class HumanTestWithPolicy:
                 if self.ai_policy is not None:
                     human_action = self._get_ai_action(state, player_id=self.human_player)
                 else:
-                    import random
-                    human_action = random.choice(list(self.ACTION_MAP.values()))
+                    # Fallback: deterministic first action when no policy loaded
+                    human_action = list(self.ACTION_MAP.values())[0]
             
             if not running:
                 break
