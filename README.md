@@ -21,7 +21,7 @@
 ## Features
 
 - 🎭 **Blind Testing** — Eliminates algorithm bias, ensuring incentives are awarded based on genuine performance
-- 🔐 **Local Encryption** — Results are encrypted and tamper-proof, serving as a trusted credential for claiming incentives
+- 🔐 **Local Encryption** — Results are encrypted with the administrator's RSA public key; only the administrator can decrypt or verify them
 - 🔀 **Independent Randomization** — Each player's test order is shuffled separately, so incentive evaluation is unaffected by others
 - 🎯 **Practice Mode** — Unlimited practice runs that do not affect formal test scores or incentive calculations
 - 🛠️ **Admin Tools** — Built-in encryption, decryption, and result reader

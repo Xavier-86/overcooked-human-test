@@ -24,8 +24,9 @@ from typing import List, Dict, Any, Optional
 from .crypto_utils import (
     read_encrypted_json,
     write_encrypted_json,
-    read_encrypted_results,
     write_encrypted_results,
+    read_local_results,
+    write_local_results,
 )
 
 
@@ -120,6 +121,11 @@ def _get_progress_path(user_id: str) -> str:
 
 def _get_results_path(user_id: str) -> str:
     return os.path.join(_ensure_user_dir(user_id), "results.json.enc")
+
+
+def _get_local_results_path(user_id: str) -> str:
+    """Client-readable Fernet-encrypted cache of result entries."""
+    return os.path.join(_ensure_user_dir(user_id), "local_results.json.enc")
 
 
 def load_experiment_config(config_path: str = None) -> dict:
@@ -323,6 +329,10 @@ def record_episode_result(user_id: str, test_index: int, result: dict):
 
     results = load_all_results(user_id)
     results.append(result_entry)
+
+    # Local Fernet-encrypted cache for client UI / aggregation.
+    write_local_results(_get_local_results_path(user_id), results)
+    # RSA-encrypted authoritative file for the administrator.
     write_encrypted_results(_get_results_path(user_id), results)
 
     # Update progress
@@ -416,8 +426,8 @@ def calculate_user_score(user_id: str) -> float:
 
 
 def load_all_results(user_id: str) -> List[dict]:
-    """Load all recorded results for a user."""
+    """Load all recorded results for a user (from the local client cache)."""
     try:
-        return read_encrypted_results(_get_results_path(user_id))
+        return read_local_results(_get_local_results_path(user_id))
     except FileNotFoundError:
         return []

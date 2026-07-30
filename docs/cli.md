@@ -178,22 +178,24 @@ The file contains a JSON array. Each element is one completed **episode**:
 ]
 ```
 
-Result files are encrypted with an embedded key so participants cannot read them. After testing, the participant sends the `results.json.enc` file to the administrator, who decrypts it with `results_reader.py`.
+Result files are encrypted with the administrator's **RSA public key** so participants cannot read or tamper with them. After testing, the participant sends the `results.json.enc` file to the administrator, who decrypts it with the matching **RSA private key** using `results_reader.py`.
+
+A client-readable cache (`local_results.json.enc`) is also kept locally so the participant's UI can show progress and aggregate scores. This cache is not used for reward verification.
 
 #### Decrypting result files (admin only)
 
 ```bash
 python results_reader.py path/to/results.json.enc
-# You will be prompted for the decryption key
+# You will be prompted for the private key file path
 
-# Or pass the key directly
-python results_reader.py path/to/results.json.enc --key "YOUR_KEY"
+# Or pass the private key directly
+python results_reader.py path/to/results.json.enc --private-key private_key.pem
 
 # Export to CSV
-python results_reader.py path/to/results.json.enc --key "YOUR_KEY" --csv output.csv
+python results_reader.py path/to/results.json.enc --private-key private_key.pem --csv output.csv
 
 # Output as JSON
-python results_reader.py path/to/results.json.enc --key "YOUR_KEY" --json
+python results_reader.py path/to/results.json.enc --private-key private_key.pem --json
 ```
 
 ### Inspecting progress programmatically
@@ -223,7 +225,10 @@ The CLI resolves the policy pool directory in the following order:
 
 ## Encryption
 
-All files under `exp_configs/` are stored **encrypted** on disk. The encryption key is embedded in `crypto_utils.py` (obfuscated). Participants cannot read raw data by opening files.
+Files under `exp_configs/` are stored **encrypted** on disk using two different mechanisms:
+
+- **Config / user / progress files** (`*.enc` under `exp_configs/`) use a Fernet key loaded from `config.key` (or the `OVERCOOKED_CONFIG_KEY` environment variable).
+- **Result files** (`results.json.enc`) use the administrator's **RSA public key** and can only be decrypted with the matching `private_key.pem`.
 
 To prepare a project for distribution:
 
@@ -232,10 +237,16 @@ To prepare a project for distribution:
 python admin_crypto.py encrypt exp_configs/experiment_config.json --remove-plain
 ```
 
-To decrypt files as administrator:
+To decrypt config files as administrator:
 
 ```bash
 python admin_crypto.py decrypt exp_configs/experiment_config.json.enc
+```
+
+To decrypt a result file as administrator:
+
+```bash
+python admin_crypto.py decrypt-results path/to/results.json.enc --private-key private_key.pem
 ```
 
 ---

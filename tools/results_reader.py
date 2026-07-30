@@ -3,14 +3,14 @@
 Independent CLI for decrypting test result files.
 
 The administrator uses this tool to read encrypted result files sent by
-participants.  The decryption key is NOT embedded in this script; it must
-be provided interactively or via command line.
+participants.  Result files are encrypted with the administrator's RSA public
+key; only the matching private key can decrypt them.
 
 Usage:
     python results_reader.py path/to/results.json.enc
-    python results_reader.py path/to/results.json.enc --json
-    python results_reader.py path/to/results.json.enc --csv output.csv
-    python results_reader.py path/to/results.json.enc --key "YOUR_KEY"
+    python results_reader.py path/to/results.json.enc --private-key private_key.pem
+    python results_reader.py path/to/results.json.enc --private-key private_key.pem --json
+    python results_reader.py path/to/results.json.enc --private-key private_key.pem --csv output.csv
 """
 
 import argparse
@@ -20,15 +20,16 @@ import json
 import os
 import sys
 
-from cryptography.fernet import Fernet
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+from human_test.crypto_utils import read_encrypted_results
 
 
-def decrypt_file(enc_path: str, key: str) -> list:
+def decrypt_file(enc_path: str, private_key_pem: bytes) -> list:
     """Decrypt a results file and return the JSON array."""
-    with open(enc_path, "rb") as f:
-        data = f.read()
-    raw = Fernet(key).decrypt(data)
-    return json.loads(raw.decode("utf-8"))
+    return read_encrypted_results(enc_path, private_key_pem=private_key_pem)
 
 
 def print_table(results: list):
@@ -103,24 +104,34 @@ def write_csv(results: list, csv_path: str):
     print(f"[OK] Exported to {csv_path}")
 
 
-def prompt_key() -> str:
-    """Prompt for decryption key interactively."""
+def prompt_private_key_path() -> str:
+    """Prompt for the private-key file path interactively."""
     try:
-        key = getpass.getpass("Decryption key: ")
+        path = getpass.getpass("Private key file path: ")
     except Exception:
-        key = input("Decryption key: ")
-    return key.strip()
+        path = input("Private key file path: ")
+    return path.strip()
+
+
+def load_private_key_pem(path: str) -> bytes:
+    """Load and validate the RSA private key file."""
+    with open(path, "rb") as f:
+        pem = f.read()
+    # Validate by loading it (cryptography will raise on bad PEM).
+    from cryptography.hazmat.primitives import serialization
+    serialization.load_pem_private_key(pem, password=None)
+    return pem
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="results_reader.py",
-        description="Decrypt and read encrypted test result files.",
+        description="Decrypt and read encrypted test result files with the administrator RSA private key.",
     )
     parser.add_argument("file", help="Path to the encrypted results file")
     parser.add_argument(
-        "--key", type=str, default=None,
-        help="Decryption key (if omitted, you will be prompted)",
+        "--private-key", type=str, default=None,
+        help="Path to the RSA private key PEM file (if omitted, you will be prompted)",
     )
     parser.add_argument(
         "--json", action="store_true",
@@ -137,20 +148,23 @@ def main() -> int:
         print(f"[ERR] File not found: {args.file}")
         return 1
 
-    key = args.key or prompt_key()
-    if not key:
-        print("[ERR] Decryption key is required.")
+    key_path = args.private_key or prompt_private_key_path()
+    if not key_path:
+        print("[ERR] Private key path is required.")
         return 1
 
-    # Validate key format
-    try:
-        Fernet(key)
-    except Exception:
-        print("[ERR] Invalid key format.  Expected a 32-byte base64-encoded Fernet key.")
+    if not os.path.isfile(key_path):
+        print(f"[ERR] Private key file not found: {key_path}")
         return 1
 
     try:
-        results = decrypt_file(args.file, key)
+        private_pem = load_private_key_pem(key_path)
+    except Exception as e:
+        print(f"[ERR] Invalid private key: {e}")
+        return 1
+
+    try:
+        results = decrypt_file(args.file, private_pem)
     except Exception as e:
         print(f"[ERR] Decryption failed: {e}")
         return 1

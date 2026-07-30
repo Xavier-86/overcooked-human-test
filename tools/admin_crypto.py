@@ -2,11 +2,14 @@
 """
 Admin tool for encrypting / decrypting exp_configs/ files.
 
-All files under exp_configs/ must be encrypted before the CLI is used.
-The encryption key is embedded in crypto_utils.py (obfuscated).
+Files under exp_configs/ that are read by the local client (experiment config,
+user accounts, progress) are encrypted with the Fernet config key.  The config
+key is loaded from the `config.key` file or the `OVERCOOKED_CONFIG_KEY`
+environment variable.
 
-Participants do not need to know the key; they interact with the CLI only.
-The administrator uses results_reader.py to decrypt participant result files.
+Test result files (`results.json.enc`) are encrypted with the administrator's
+RSA public key and must be decrypted with the matching private key.  Use
+`results_reader.py` or the `decrypt-results` subcommand for those files.
 """
 
 import argparse
@@ -21,12 +24,27 @@ from human_test.crypto_utils import (
     encrypt_file,
     decrypt_file,
     generate_key,
+    generate_rsa_keypair,
+    read_encrypted_results,
 )
 
 
 def cmd_generate_key(_args):
     key = generate_key()
     print(key)
+
+
+def cmd_generate_rsa_keypair(_args):
+    private_pem, public_pem = generate_rsa_keypair()
+    private_path = os.path.join(_project_root, "private_key.pem")
+    public_path = os.path.join(_project_root, "public_key.pem")
+    with open(private_path, "wb") as f:
+        f.write(private_pem)
+    with open(public_path, "wb") as f:
+        f.write(public_pem)
+    print(f"[OK] Private key: {private_path}")
+    print(f"[OK] Public key:  {public_path}")
+    print("[WARN] Keep private_key.pem secret.  public_key.pem can be distributed.")
 
 
 def cmd_encrypt(args):
@@ -96,23 +114,47 @@ def cmd_decrypt_dir(args):
     print(f"[OK] Decrypted {decrypted} file(s) in {target_dir}")
 
 
+def cmd_decrypt_results(args):
+    if not os.path.isfile(args.file):
+        print(f"[ERR] File not found: {args.file}")
+        sys.exit(1)
+    if not os.path.isfile(args.private_key):
+        print(f"[ERR] Private key file not found: {args.private_key}")
+        sys.exit(1)
+
+    with open(args.private_key, "rb") as f:
+        private_pem = f.read()
+
+    try:
+        results = read_encrypted_results(args.file, private_key_pem=private_pem)
+    except Exception as e:
+        print(f"[ERR] Decryption failed: {e}")
+        sys.exit(1)
+
+    print(f"[OK] Decrypted {len(results)} record(s)")
+    import json
+    print(json.dumps(results, indent=2, ensure_ascii=False))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="admin_crypto.py",
-        description="Administrator encryption/decryption tool for exp_configs/.",
+        description="Administrator encryption/decryption tool for exp_configs/ and result files.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("generate-key", help="Generate a new Fernet key")
+    sub.add_parser("generate-key", help="Generate a new Fernet key for config files")
 
-    p_enc = sub.add_parser("encrypt", help="Encrypt a single file")
+    sub.add_parser("generate-rsa-keypair", help="Generate a new RSA key pair for result files")
+
+    p_enc = sub.add_parser("encrypt", help="Encrypt a single config file")
     p_enc.add_argument("file", help="Path to plaintext file")
     p_enc.add_argument(
         "--remove-plain", action="store_true",
         help="Delete the original plaintext after encryption",
     )
 
-    p_dec = sub.add_parser("decrypt", help="Decrypt a single .enc file")
+    p_dec = sub.add_parser("decrypt", help="Decrypt a single .enc config file")
     p_dec.add_argument("file", help="Path to encrypted file")
 
     p_enc_dir = sub.add_parser("encrypt-dir", help="Encrypt all JSON/JSONL files in a directory")
@@ -122,8 +164,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Delete original plaintext files after encryption",
     )
 
-    p_dec_dir = sub.add_parser("decrypt-dir", help="Decrypt all .enc files in a directory")
+    p_dec_dir = sub.add_parser("decrypt-dir", help="Decrypt all .enc config files in a directory")
     p_dec_dir.add_argument("dir", help="Target directory")
+
+    p_dec_res = sub.add_parser("decrypt-results", help="Decrypt a results.json.enc file with the RSA private key")
+    p_dec_res.add_argument("file", help="Path to the encrypted results file")
+    p_dec_res.add_argument(
+        "--private-key", type=str, default="private_key.pem",
+        help="Path to the RSA private key PEM file (default: private_key.pem)",
+    )
 
     return parser
 
@@ -134,10 +183,12 @@ def main():
 
     commands = {
         "generate-key": cmd_generate_key,
+        "generate-rsa-keypair": cmd_generate_rsa_keypair,
         "encrypt": cmd_encrypt,
         "decrypt": cmd_decrypt,
         "encrypt-dir": cmd_encrypt_dir,
         "decrypt-dir": cmd_decrypt_dir,
+        "decrypt-results": cmd_decrypt_results,
     }
 
     cmd = commands.get(args.command)

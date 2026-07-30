@@ -40,25 +40,31 @@ _LANG = "en"
 
 _TRANSLATIONS = {
     "Human-AI Interaction Testing": {"zh": "人机交互测试"},
-    "First Time Setup - Encryption Key": {"zh": "首次设置 - 加密密钥"},
-    "No encrypted data found. An encryption key is required.": {"zh": "未发现加密数据。需要设置加密密钥。"},
-    "Save the key shown below -- you will need it to decrypt results later.": {"zh": "请保存下方显示的密钥 -- 后续需要用它解密结果。"},
-    "Generate new key": {"zh": "生成新密钥"},
-    "Enter existing key": {"zh": "输入已有密钥"},
+    "First Time Setup - Encryption": {"zh": "首次设置 - 加密"},
+    "No encrypted data found. Encryption keys are required.": {"zh": "未发现加密数据。需要设置加密密钥。"},
+    "Save the private key shown below -- you will need it to decrypt results later.": {"zh": "请保存下方显示的私钥 -- 后续需要用它解密结果。"},
+    "Generate new key pair": {"zh": "生成新的密钥对"},
+    "Use existing key pair": {"zh": "使用已有密钥对"},
     "Exit": {"zh": "退出"},
-    "NEW KEY GENERATED": {"zh": "新密钥已生成"},
-    "This key has been embedded into the project.": {"zh": "该密钥已嵌入项目。"},
-    "SAVE IT SECURELY. You will need it to decrypt participant data.": {"zh": "请妥善保存。您将需要它来解密参与者数据。"},
+    "NEW KEYS GENERATED": {"zh": "新密钥对已生成"},
+    "Public key has been embedded into the project.": {"zh": "公钥已嵌入项目。"},
+    "SAVE THE PRIVATE KEY SECURELY. You will need it to decrypt participant data.": {"zh": "请妥善保存私钥。您将需要它来解密参与者数据。"},
     "Press Enter to continue...": {"zh": "按回车键继续..."},
-    "Enter Existing Key": {"zh": "输入已有密钥"},
-    "Enter key: ": {"zh": "输入密钥: "},
-    "[ERR] Key cannot be empty.": {"zh": "[错误] 密钥不能为空。"},
-    "[OK] Key embedded into the project.": {"zh": "[成功] 密钥已嵌入项目。"},
-    "[ERR] Invalid key format: ": {"zh": "[错误] 密钥格式无效: "},
+    "Use Existing Key Pair": {"zh": "使用已有密钥对"},
+    "Enter private key PEM file path: ": {"zh": "输入私钥 PEM 文件路径: "},
+    "[ERR] Private key file not found.": {"zh": "[错误] 未找到私钥文件。"},
+    "[ERR] Invalid private key: ": {"zh": "[错误] 私钥无效: "},
+    "[OK] Keys configured.": {"zh": "[成功] 密钥已配置。"},
     "Use UP/DOWN to move, ENTER to select": {"zh": "使用上下方向键移动，回车键选择"},
     "Admin Login": {"zh": "管理员登录"},
-    "Admin password (encryption key): ": {"zh": "管理员密码（加密密钥）: "},
+    "Admin password: ": {"zh": "管理员密码: "},
     "[ERR] Incorrect password.": {"zh": "[错误] 密码错误。"},
+    "Set admin password: ": {"zh": "设置管理员密码: "},
+    "Confirm admin password: ": {"zh": "确认管理员密码: "},
+    "Admin passwords do not match.": {"zh": "两次输入的管理员密码不一致。"},
+    "[ERR] Admin password cannot be empty.": {"zh": "[错误] 管理员密码不能为空。"},
+    "Private key file path: ": {"zh": "私钥文件路径: "},
+    "[ERR] Not an RSA-encrypted result file.": {"zh": "[错误] 不是 RSA 加密的结果文件。"},
     "Admin Mode": {"zh": "管理员模式"},
     "View registered users": {"zh": "查看注册用户"},
     "Decrypt results file": {"zh": "解密结果文件"},
@@ -194,77 +200,193 @@ def _has_encrypted_files() -> bool:
     return False
 
 
-def _update_embedded_key(raw_key: str):
-    """Rewrite crypto_utils.py so that _ENCODED_KEY matches the new key."""
-    import base64
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+def _project_root() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def _key_paths() -> tuple:
+    """Return paths to the RSA key files."""
+    root = _project_root()
+    return (
+        os.path.join(root, "private_key.pem"),
+        os.path.join(root, "public_key.pem"),
+    )
+
+
+def _config_key_path() -> str:
+    return os.path.join(_project_root(), "config.key")
+
+
+def _admin_hash_path() -> str:
+    return os.path.join(_project_root(), "exp_configs", "user_data", ".admin_hash")
+
+
+def _load_admin_hash() -> Optional[str]:
+    path = _admin_hash_path()
+    if not os.path.isfile(path):
+        return None
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def _save_admin_hash(password: str):
+    """Store a salted SHA-256 hash of the admin password."""
+    import hashlib
+    salt = os.urandom(16).hex()
+    digest = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    os.makedirs(os.path.dirname(_admin_hash_path()), exist_ok=True)
+    with open(_admin_hash_path(), "w", encoding="utf-8") as f:
+        f.write(f"{salt}:{digest}")
+
+
+def _check_admin_password(password: str) -> bool:
+    stored = _load_admin_hash()
+    if not stored:
+        return False
+    import hashlib
+    salt, digest = stored.split(":", 1)
+    expected = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return digest == expected
+
+
+def _setup_admin_password():
+    """Prompt for and store a new admin password."""
+    while True:
+        pwd1 = getpass.getpass(_T("Set admin password: ")).strip()
+        if not pwd1:
+            print(_T("[ERR] Admin password cannot be empty."))
+            input(_T("Press Enter to continue..."))
+            continue
+        pwd2 = getpass.getpass(_T("Confirm admin password: ")).strip()
+        if pwd1 != pwd2:
+            print(_T("Admin passwords do not match."))
+            input(_T("Press Enter to continue..."))
+            continue
+        _save_admin_hash(pwd1)
+        break
+
+
+def _update_embedded_public_key(public_pem: bytes):
+    """Rewrite crypto_utils.py so that _EMBEDDED_PUBLIC_KEY matches the new key."""
+    project_root = _project_root()
     cu_path = os.path.join(project_root, "human_test", "crypto_utils.py")
     with open(cu_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    new_encoded = base64.b64encode(raw_key.encode()).decode()
-    # Replace the line: _ENCODED_KEY = "..."
     import re
-    new_line = f'_ENCODED_KEY = "{new_encoded}"'
-    content = re.sub(r'_ENCODED_KEY\s*=\s*"[^"]*"', new_line, content)
+    # Embed the PEM as a triple-quoted string.
+    escaped = public_pem.decode("utf-8").replace('\\', '\\\\').replace('"', '\\"')
+    new_block = f'_EMBEDDED_PUBLIC_KEY = """{escaped}"""'
+    content = re.sub(
+        r'_EMBEDDED_PUBLIC_KEY\s*=\s*"""[\s\S]*?"""',
+        new_block,
+        content,
+    )
 
     with open(cu_path, "w", encoding="utf-8") as f:
         f.write(content)
 
     # Update the in-memory key so the running process uses it immediately.
     from . import crypto_utils
-    crypto_utils.set_key(raw_key)
+    crypto_utils.set_public_key(public_pem)
 
 
-def _setup_key() -> str:
-    """Interactive first-run key setup. Returns the raw key."""
+def _write_key_files(private_pem: bytes, public_pem: bytes):
+    """Write the RSA private/public key files to the project root."""
+    private_path, public_path = _key_paths()
+    with open(private_path, "wb") as f:
+        f.write(private_pem)
+    with open(public_path, "wb") as f:
+        f.write(public_pem)
+
+
+def _write_config_key(key: str):
+    """Write the Fernet config key to config.key."""
+    path = _config_key_path()
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(key)
+    from . import crypto_utils
+    crypto_utils.set_key(key)
+
+
+def _setup_key():
+    """Interactive first-run key setup.  Generates/configures RSA key pair."""
     extra = [
-        "No encrypted data found. An encryption key is required.",
-        "Save the key shown below -- you will need it to decrypt results later.",
+        "No encrypted data found. Encryption keys are required.",
+        "Save the private key shown below -- you will need it to decrypt results later.",
     ]
     options = [
-        ("Generate new key", True),
-        ("Enter existing key", True),
+        ("Generate new key pair", True),
+        ("Use existing key pair", True),
         (_T("Exit"), True),
     ]
     while True:
-        choice = _menu_select(options, title=_T("First Time Setup - Encryption Key"), extra_lines=extra)
+        choice = _menu_select(options, title=_T("First Time Setup - Encryption"), extra_lines=extra)
         if choice == -1 or choice == 2:
             sys.exit(0)
 
         if choice == 0:
-            from .crypto_utils import generate_key
-            key = generate_key()
-            _update_embedded_key(key)
+            from .crypto_utils import generate_rsa_keypair, generate_key
+            private_pem, public_pem = generate_rsa_keypair()
+            _write_key_files(private_pem, public_pem)
+            _update_embedded_public_key(public_pem)
+
+            # Generate a fresh Fernet key for config/users/progress files.
+            config_key = generate_key()
+            _write_config_key(config_key)
+
+            # Prompt for an admin password used to access the in-app admin menu.
+            _setup_admin_password()
+
             os.system("cls" if os.name == "nt" else "clear")
             print_banner()
-            print_bar("=", _T("NEW KEY GENERATED"))
-            print(f"  {key}")
+            print_bar("=", _T("NEW KEYS GENERATED"))
+            print(_T("Private key saved to: ") + _key_paths()[0])
+            print(_T("Public key saved to: ") + _key_paths()[1])
+            print(_T("Config key saved to: ") + _config_key_path())
             print_bar("=", "")
-            print(f"  {_T('This key has been embedded into the project.')}")
-            print(f"  {_T('SAVE IT SECURELY. You will need it to decrypt participant data.')}")
+            print(f"  {_T('Public key has been embedded into the project.')}")
+            print(f"  {_T('SAVE THE PRIVATE KEY SECURELY. You will need it to decrypt participant data.')}")
             print()
             input(_T("Press Enter to continue..."))
-            return key
+            return
 
         if choice == 1:
             os.system("cls" if os.name == "nt" else "clear")
             print_banner()
-            print_bar("=", _T("Enter Existing Key"))
-            key = input(_T("Enter key: ")).strip()
-            if not key:
-                print(_T("[ERR] Key cannot be empty."))
+            print_bar("=", _T("Use Existing Key Pair"))
+            private_path, public_path = _key_paths()
+            path = input(_T("Enter private key PEM file path: ")).strip()
+            if not path or not os.path.isfile(path):
+                print(_T("[ERR] Private key file not found."))
                 input(_T("Press Enter to continue..."))
                 continue
             try:
-                from cryptography.fernet import Fernet
-                Fernet(key)
-                _update_embedded_key(key)
-                print(_T("[OK] Key embedded into the project."))
+                with open(path, "rb") as f:
+                    private_pem = f.read()
+                from cryptography.hazmat.primitives import serialization
+                private_key = serialization.load_pem_private_key(private_pem, password=None)
+                public_pem = private_key.public_key().public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                )
+                _write_key_files(private_pem, public_pem)
+                _update_embedded_public_key(public_pem)
+
+                # Reuse or create config key.
+                if os.path.isfile(_config_key_path()):
+                    with open(_config_key_path(), "r", encoding="utf-8") as f:
+                        _write_config_key(f.read().strip())
+                else:
+                    from .crypto_utils import generate_key
+                    _write_config_key(generate_key())
+
+                _setup_admin_password()
+                print(_T("[OK] Keys configured."))
                 input(_T("Press Enter to continue..."))
-                return key
+                return
             except Exception as e:
-                print(_T("[ERR] Invalid key format: ") + str(e))
+                print(_T("[ERR] Invalid private key: ") + str(e))
                 input(_T("Press Enter to continue..."))
                 continue
 
@@ -389,10 +511,9 @@ def _menu_select(options: list, title: str = "", extra_lines: list = None) -> in
 
 
 def _verify_admin_password() -> bool:
-    """Prompt for admin password. Returns True if it matches the encryption key."""
-    from .crypto_utils import _get_key
-    pwd = _prompt_password(_T("Admin password (encryption key): "))
-    return pwd.strip() == _get_key()
+    """Prompt for admin password. Returns True if it matches the stored hash."""
+    pwd = _prompt_password(_T("Admin password: "))
+    return _check_admin_password(pwd.strip())
 
 
 def _admin_menu() -> int:
@@ -429,21 +550,31 @@ def _admin_menu() -> int:
             path = input(_T("Results file path: ")).strip()
             if not path or not os.path.exists(path):
                 print(_T("[ERR] File not found."))
-            else:
-                try:
-                    from .crypto_utils import read_encrypted_results
-                    results = read_encrypted_results(path)
-                    print(f"\n{_T('Total records: ')}{len(results)}")
-                    for r in results:
-                        print(
-                            f"  Test {r.get('test_index', '?'):>2} ep{r.get('episode_number', '?'):>2}: "
-                            f"env={r.get('env_name', '?'):<10} "
-                            f"algo={r.get('algo', '?'):<6} "
-                            f"score={r.get('avg_score', 0):>7.1f} "
-                            f"soups={r.get('total_soups', 0):>3}"
-                        )
-                except Exception as e:
-                    print(f"[ERR] {e}")
+                input("\nPress Enter to continue...")
+                continue
+
+            key_path = input(_T("Private key file path: ")).strip()
+            if not key_path or not os.path.exists(key_path):
+                print(_T("[ERR] Private key file not found."))
+                input("\nPress Enter to continue...")
+                continue
+
+            try:
+                from .crypto_utils import read_encrypted_results
+                with open(key_path, "rb") as f:
+                    private_pem = f.read()
+                results = read_encrypted_results(path, private_key_pem=private_pem)
+                print(f"\n{_T('Total records: ')}{len(results)}")
+                for r in results:
+                    print(
+                        f"  Test {r.get('test_index', '?'):>2} ep{r.get('episode_number', '?'):>2}: "
+                        f"env={r.get('env_name', '?'):<10} "
+                        f"algo={r.get('algo', '?'):<6} "
+                        f"score={r.get('avg_score', 0):>7.1f} "
+                        f"soups={r.get('total_soups', 0):>3}"
+                    )
+            except Exception as e:
+                print(f"[ERR] {e}")
             input("\nPress Enter to continue...")
 
 

@@ -178,22 +178,24 @@ overcooked-human-test --login --user-id alice
 ]
 ```
 
-结果文件使用内嵌密钥自动加密，被试无法直接读取。测试结束后，被试将 `results.json.enc` 文件发给管理员，管理员使用 `results_reader.py` 解密查看。
+结果文件使用管理员的 **RSA 公钥**加密，被试无法读取或篡改。测试结束后，被试将 `results.json.enc` 文件发给管理员，管理员使用对应的 **RSA 私钥**通过 `results_reader.py` 解密查看。
+
+本地同时会保留一份客户端可读的缓存（`local_results.json.enc`），用于展示进度和汇总分数。该缓存不作为奖励核验的依据。
 
 #### 解密结果文件（仅管理员）
 
 ```bash
 python results_reader.py path/to/results.json.enc
-# 交互式输入解密密钥
+# 交互式输入私钥文件路径
 
-# 或直接传入密钥
-python results_reader.py path/to/results.json.enc --key "YOUR_KEY"
+# 或直接传入私钥
+python results_reader.py path/to/results.json.enc --private-key private_key.pem
 
 # 导出为 CSV
-python results_reader.py path/to/results.json.enc --key "YOUR_KEY" --csv output.csv
+python results_reader.py path/to/results.json.enc --private-key private_key.pem --csv output.csv
 
 # 以 JSON 格式输出
-python results_reader.py path/to/results.json.enc --key "YOUR_KEY" --json
+python results_reader.py path/to/results.json.enc --private-key private_key.pem --json
 ```
 
 ### 编程方式查看进度
@@ -223,7 +225,10 @@ CLI 按以下顺序查找策略池目录：
 
 ## 加密
 
-`exp_configs/` 下的所有文件均以**加密形式**存储在磁盘上。加密密钥内嵌在 `crypto_utils.py` 中（经过混淆）。被试无法通过直接打开文件查看原始数据。
+`exp_configs/` 下的文件按两种机制**加密**存储：
+
+- **配置 / 用户 / 进度文件**（`exp_configs/` 下的 `*.enc`）使用 `config.key` 中的 Fernet 密钥（或 `OVERCOOKED_CONFIG_KEY` 环境变量）加密。
+- **结果文件**（`results.json.enc`）使用管理员的 **RSA 公钥**加密，只能用对应的 `private_key.pem` 解密。
 
 分发项目前的准备：
 
@@ -232,10 +237,16 @@ CLI 按以下顺序查找策略池目录：
 python admin_crypto.py encrypt exp_configs/experiment_config.json --remove-plain
 ```
 
-管理员解密文件：
+管理员解密配置文件：
 
 ```bash
 python admin_crypto.py decrypt exp_configs/experiment_config.json.enc
+```
+
+管理员解密结果文件：
+
+```bash
+python admin_crypto.py decrypt-results path/to/results.json.enc --private-key private_key.pem
 ```
 
 ---

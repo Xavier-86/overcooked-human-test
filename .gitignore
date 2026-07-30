@@ -37,3 +37,14 @@ Thumbs.db
 # Game recordings (optional)
 recordings/
 screenshots/
+
+# Encryption keys (administrator only)
+private_key.pem
+config.key
+
+# Local virtual environment
+.venv/
+
+# Pre-trained policy network weights (large binary files)
+exp_configs/policy_pool/**/*.pt
+exp_configs/policy_pool/**/*.pkl

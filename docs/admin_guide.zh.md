@@ -12,7 +12,13 @@
 overcooked-human-test
 ```
 
-系统会提示您**生成新密钥**或**输入已有密钥**。密钥会被嵌入 `human_test/crypto_utils.py` 中（经过混淆处理）。**请妥善保存原始密钥** —— 后续需要用它来解密参与者的结果文件。
+系统会提示您**生成新的 RSA 密钥对**或**使用已有私钥**。设置过程会创建以下文件：
+
+- `private_key.pem` — **仅管理员持有**。用于解密参与者的结果文件。**切勿分发此文件。**
+- `public_key.pem` — 嵌入项目中。参与者的客户端用它加密结果文件。可以安全分发。
+- `config.key` — Fernet 密钥，用于加密磁盘上的配置/用户/进度文件。
+
+系统还会要求您设置一个**管理员密码**，用于进入应用内的管理员菜单。
 
 密钥设置完成后，`exp_configs/` 下的所有明文 JSON 文件会自动加密。
 
@@ -22,21 +28,24 @@ overcooked-human-test
 
 向参与者分发项目前，请按以下步骤操作：
 
-1. **生成新密钥**（首次启动时）或输入已有密钥：
+1. 首次启动时**生成新的密钥对**（或导入已有私钥）：
    ```bash
    overcooked-human-test
    ```
-   密钥会自动嵌入 `human_test/crypto_utils.py` 中。
+   这会在项目根目录写入 `private_key.pem`、`public_key.pem` 和 `config.key`。
 
-2. **妥善保存原始密钥**（例如保存在密码管理器中）。后续需要用它来解密参与者发回的 `results.json.enc` 文件。
+2. **妥善保存 `private_key.pem`**（例如保存在密码管理器或离线存储中）。后续需要用它来解密参与者发回的 `results.json.enc` 文件。
 
 3. **准备实验配置**（见下文），并加密 `exp_configs/` 下的所有文件。
 
-4. **删除所有敏感的明文文件**（日志、临时 JSON、旧密钥等）。
+4. **删除所有敏感的明文文件**（日志、临时 JSON、旧密钥等）。**确保 `private_key.pem` 不在分发包中。**
 
-5. **将项目分发给参与者**。参与者**不需要**原始密钥 —— 嵌入的混淆密钥已足以进行加密和本地运行。
+5. **将项目分发给参与者**。参与者**不需要** `private_key.pem` —— 本地运行只需要 `public_key.pem` 和 `config.key`。
 
-6. **参与者完成测试后**，会将 `results.json.enc` 文件发回给您。使用 `results_reader.py` 和第 2 步保存的原始密钥进行解密。
+6. **参与者完成测试后**，会将 `results.json.enc` 文件发回给您。使用 `results_reader.py` 和您的 `private_key.pem` 进行解密：
+   ```bash
+   python results_reader.py path/to/results.json.enc --private-key private_key.pem
+   ```
 
 ---
 
@@ -67,10 +76,10 @@ overcooked-human-test
 
 ## 管理员 CLI 菜单
 
-在主菜单（未登录状态）选择 **管理员**，输入加密密钥作为密码。您可以：
+在主菜单（未登录状态）选择 **管理员**，输入首次设置时设定的管理员密码。您可以：
 
 - 查看注册用户
-- 就地解密并查看结果文件
+- 就地解密并查看结果文件（需要 `private_key.pem`）
 
 ---
 
@@ -85,10 +94,12 @@ exp_configs/
     ├── users.json.enc              # 加密的用户账户
     └── <user_id>/
         ├── progress.json.enc       # 加密的测试进度
-        └── results.json.enc        # 加密的测试结果
+        ├── local_results.json.enc  # 客户端可读的结果缓存
+        └── results.json.enc        # RSA 加密的测试结果（仅管理员可解密）
 ```
 
-所有 `.enc` 文件均使用 `crypto_utils.py` 中嵌入的密钥加密。
+- 配置/用户/进度文件使用 `config.key` 中的 Fernet 密钥加密。
+- `results.json.enc` 使用 RSA 公钥加密，只能用 `private_key.pem` 解密。
 
 ---
 

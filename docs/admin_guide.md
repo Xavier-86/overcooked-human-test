@@ -6,15 +6,21 @@
 
 ## First-Time Setup
 
-When the CLI is launched for the first time and no `.enc` files exist, the administrator must set up the encryption key.
+When the CLI is launched for the first time and no `.enc` files exist, the administrator must set up the encryption keys.
 
 ```bash
 overcooked-human-test
 ```
 
-You will be prompted to either **generate a new key** or **enter an existing key**. The key is embedded into `human_test/crypto_utils.py` (obfuscated). **Save the raw key securely** -- you will need it to decrypt participant result files later.
+You will be prompted to either **generate a new RSA key pair** or **use an existing private key**. The setup creates:
 
-After the key is set, any plaintext JSON files under `exp_configs/` are automatically encrypted.
+- `private_key.pem` — **Administrator only**. Used to decrypt participant result files. Never distribute this file.
+- `public_key.pem` — Embedded in the project. Used by participants' clients to encrypt result files. Safe to distribute.
+- `config.key` — Fernet key used to encrypt config/users/progress files on disk.
+
+You will also be asked to set an **admin password** for the in-app admin menu.
+
+After the keys are set, any plaintext JSON files under `exp_configs/` are automatically encrypted.
 
 ---
 
@@ -22,21 +28,24 @@ After the key is set, any plaintext JSON files under `exp_configs/` are automati
 
 To prepare the project for participants, follow these steps:
 
-1. **Generate a new key** (or enter an existing one) on first launch:
+1. **Generate a new key pair** (or import an existing private key) on first launch:
    ```bash
    overcooked-human-test
    ```
-   The key is embedded into `human_test/crypto_utils.py`.
+   This writes `private_key.pem`, `public_key.pem`, and `config.key` to the project root.
 
-2. **Save the raw key securely** (e.g. in a password manager). You will need it later to decrypt `results.json.enc` files sent by participants.
+2. **Save `private_key.pem` securely** (e.g. in a password manager or offline storage). You will need it later to decrypt `results.json.enc` files sent by participants.
 
 3. **Prepare the experiment config** (see below) and encrypt all files under `exp_configs/`.
 
-4. **Remove any sensitive plaintext files** (logs, temporary JSONs, old keys).
+4. **Remove any sensitive plaintext files** (logs, temporary JSONs, old keys). **Keep `private_key.pem` out of the distributed package.**
 
-5. **Distribute the project** to participants. They do **not** need the raw key -- the embedded obfuscated key is sufficient for encryption and local gameplay.
+5. **Distribute the project** to participants. They do **not** need `private_key.pem` — only `public_key.pem` and `config.key` are required for local gameplay.
 
-6. **After participants finish testing**, they send their `results.json.enc` file back to you. Decrypt it with `results_reader.py` using the raw key you saved in step 2.
+6. **After participants finish testing**, they send their `results.json.enc` file back to you. Decrypt it with `results_reader.py` and your `private_key.pem`:
+   ```bash
+   python results_reader.py path/to/results.json.enc --private-key private_key.pem
+   ```
 
 ---
 
@@ -67,10 +76,10 @@ Place the config at `exp_configs/experiment_config.json`. The CLI will encrypt i
 
 ## Admin CLI Menu
 
-From the main menu (logged out), select **Admin** and enter the encryption key as the password. You can:
+From the main menu (logged out), select **Admin** and enter the admin password you set during first-run setup. You can:
 
 - View registered users
-- Decrypt and inspect result files in-place
+- Decrypt and inspect result files in-place (requires `private_key.pem`)
 
 ---
 
@@ -85,10 +94,12 @@ exp_configs/
     ├── users.json.enc              # Encrypted user accounts
     └── <user_id>/
         ├── progress.json.enc       # Encrypted test progress
-        └── results.json.enc        # Encrypted test results
+        ├── local_results.json.enc  # Client-readable result cache
+        └── results.json.enc        # RSA-encrypted test results (admin only)
 ```
 
-All `.enc` files are encrypted with the key embedded in `crypto_utils.py`.
+- Config / user / progress files are encrypted with the Fernet key from `config.key`.
+- `results.json.enc` is encrypted with the RSA public key and can only be decrypted with `private_key.pem`.
 
 ---
 
